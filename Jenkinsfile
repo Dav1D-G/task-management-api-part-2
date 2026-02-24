@@ -1,5 +1,5 @@
 pipeline {
-  agent { label 'ci' }
+  agent none
 
   options {
     timestamps()
@@ -14,18 +14,21 @@ pipeline {
 
   stages {
     stage('Checkout') {
+      agent { label 'ci' }
       steps {
         checkout scm
       }
     }
 
     stage('Install Dependencies') {
+      agent { label 'ci' }
       steps {
         sh 'npm install'
       }
     }
 
     stage('Run Tests') {
+      agent { label 'ci' }
       when {
         expression { return params.RUN_TESTS }
       }
@@ -35,6 +38,7 @@ pipeline {
     }
 
     stage('Build Metadata') {
+      agent { label 'ci' }
       steps {
         script {
           def content = "BUILD_VERSION=${params.BUILD_VERSION}\nENV=${params.ENV}\nRUN_TESTS=${params.RUN_TESTS}\n"
@@ -45,6 +49,7 @@ pipeline {
     }
 
     stage('Credentials Check') {
+      agent { label 'docker' }
       steps {
         withCredentials([string(credentialsId: 'demo-token', variable: 'DEMO_TOKEN')]) {
           sh 'test -n "$DEMO_TOKEN"'
@@ -54,12 +59,14 @@ pipeline {
     }
 
     stage('Docker Build') {
+      agent { label 'docker' }
       steps {
         sh 'docker build -t task-api:local .'
       }
     }
 
     stage('Docker Run') {
+      agent { label 'docker' }
       steps {
         sh '''
           set -e
