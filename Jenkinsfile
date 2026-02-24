@@ -4,6 +4,7 @@ pipeline {
   options {
     timestamps()
     disableConcurrentBuilds()
+    skipDefaultCheckout(true)
   }
 
   parameters {
@@ -17,13 +18,16 @@ pipeline {
       agent { label 'ci' }
       steps {
         checkout scm
+        stash name: 'source', includes: '**/*'
       }
     }
 
     stage('Install Dependencies') {
       agent { label 'ci' }
       steps {
+        unstash 'source'
         sh 'npm install'
+        stash name: 'source', includes: '**/*'
       }
     }
 
@@ -33,25 +37,30 @@ pipeline {
         expression { return params.RUN_TESTS }
       }
       steps {
+        unstash 'source'
         sh 'npm test'
+        stash name: 'source', includes: '**/*'
       }
     }
 
     stage('Build Metadata') {
       agent { label 'ci' }
       steps {
+        unstash 'source'
         script {
           def content = "BUILD_VERSION=${params.BUILD_VERSION}\nENV=${params.ENV}\nRUN_TESTS=${params.RUN_TESTS}\n"
           writeFile file: 'build-info.txt', text: content
           echo "Build info written: BUILD_VERSION=${params.BUILD_VERSION}, ENV=${params.ENV}, RUN_TESTS=${params.RUN_TESTS}"
         }
         archiveArtifacts artifacts: 'build-info.txt', allowEmptyArchive: false
+        stash name: 'source', includes: '**/*'
       }
     }
 
     stage('Credentials Check') {
       agent { label 'docker' }
       steps {
+        unstash 'source'
         withCredentials([string(credentialsId: 'demo-token', variable: 'DEMO_TOKEN')]) {
           sh 'test -n "$DEMO_TOKEN"'
         }
@@ -62,6 +71,7 @@ pipeline {
     stage('Docker Build') {
       agent { label 'docker' }
       steps {
+        unstash 'source'
         sh 'docker build -t task-api:local .'
       }
     }
@@ -69,6 +79,7 @@ pipeline {
     stage('Docker Run') {
       agent { label 'docker' }
       steps {
+        unstash 'source'
         sh '''
           set -e
           docker rm -f task-api-local >/dev/null 2>&1 || true
