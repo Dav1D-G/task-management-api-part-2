@@ -45,6 +45,7 @@ pipeline {
           writeFile file: 'build-info.txt', text: content
           echo "Build info written: BUILD_VERSION=${params.BUILD_VERSION}, ENV=${params.ENV}, RUN_TESTS=${params.RUN_TESTS}"
         }
+        archiveArtifacts artifacts: 'build-info.txt', allowEmptyArchive: false
       }
     }
 
@@ -94,8 +95,9 @@ pipeline {
       echo 'Build failed ? check logs'
     }
     always {
-      sh 'docker rm -f task-api-local >/dev/null 2>&1 || true'
-      archiveArtifacts artifacts: 'build-info.txt', allowEmptyArchive: false
+      node('docker') {
+        sh 'docker rm -f task-api-local >/dev/null 2>&1 || true'
+      }
       echo 'Post-build actions completed'
     }
   }
